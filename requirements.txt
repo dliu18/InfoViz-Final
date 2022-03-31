@@ -1,4 +1,4 @@
 networkx
 dash
 plotly
-guniforn
+gunicorn
