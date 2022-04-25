@@ -3,7 +3,16 @@ from dash import Dash, dcc, html, Input, Output, callback
 import dash_app_overview
 import dash_app_diagnostics_with_interaction
 
-app = Dash(__name__, suppress_callback_exceptions=True)
+external_stylesheets = [
+    {
+        "href": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css",
+        "rel": "stylesheet"
+    }
+]
+
+app = Dash(__name__,
+    suppress_callback_exceptions=True,
+    external_stylesheets=external_stylesheets)
 server = app.server
 
 app.layout = html.Div([

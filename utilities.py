@@ -9,6 +9,7 @@ import plotly.graph_objects as go
 import csv
 import random
 
+import time
 # Unfairness scores
 
 def unfairness_score(Y, W, node_idx):
@@ -18,7 +19,6 @@ def unfairness_score(Y, W, node_idx):
         
         The unfairness score is \sum_{j=1}^n |Y_i - Y_j|^2 W[i,j]
     '''
-    
     unfairness = 0.0
     for j in range(len(Y)):
         if W[node_idx][j] == 0:
@@ -32,6 +32,37 @@ def unfairness_scores(Y, W):
 def unfairness_scores_normalized(Y, W, G):
     degrees = [G.degree[node] for node in G.nodes()]
     degree_normalized_scores = [unfairness_score(Y, W, i)/degrees[i] if degrees[i] > 0 
+            else 0 
+            for i in range(len(Y))]
+    return degree_normalized_scores/np.max(degree_normalized_scores)
+
+# k hop InFoRM
+def k_hop_InFoRM_score(Y, G, node_idx, nr_hops):
+    '''
+        Calculates the k-hop InFoRM unfairness score for node 'node_idx' where Y is the nxd embedding matrix and W
+        is the weighted adjacency matrix. 
+        
+        The k-hop InFoRM unfairness score for node u is \sum_{v : v != u and v in N(u,k)} |Y_i - Y_j|^2 
+        where N(u,k) are the nodes reachable from u in at most k steps
+    '''
+    # compute N(node_idx, nr_hops)
+    # ids from the nodes are not sorted, so we need to locate the correct node with node_idx
+    N_nr_hops = nx.ego_graph(G,list(G.nodes())[node_idx],nr_hops,False).nodes
+    unfairness = 0.0
+    for v in N_nr_hops:
+        # check that embedding matrix is sorted according to node indices
+        # shouldn't the norm be squared?
+        # get index from node to access embedding matrix 
+        v_idx = list(G.nodes()).index(v)
+        unfairness += np.linalg.norm(Y[node_idx] - Y[v_idx])
+    return unfairness 
+
+def k_hop_InFoRM_scores(Y, G, nr_hops):
+    return [k_hop_InFoRM_score(Y, G, i, nr_hops) for i in range(len(Y))]
+
+def k_hop_InFoRM_scores_normalized(Y, G, nr_hops):
+    degrees = [G.degree[node] for node in G.nodes()]
+    degree_normalized_scores = [k_hop_InFoRM_score(Y, G, i, nr_hops)/degrees[i] if degrees[i] > 0 
             else 0 
             for i in range(len(Y))]
     return degree_normalized_scores/np.max(degree_normalized_scores)
@@ -87,7 +118,8 @@ def group_unfairness_score(Y, W, node_idx, node_features, S, z, k):
 def group_unfairness_scores(Y, W, node_features, S, z, k):
     return [group_unfairness_score(Y, W, i, node_features, S, z, k) for i in range(len(Y))]
 
-def load_network(path, path_node_features, path_fairness_scores, fairness_notion, params, title="Local Graph Topology"):
+def load_network(path, path_node_features, path_fairness_scores, fairness_notion, params, 
+                title="Local Graph Topology", show_scale = True):
 #def load_network(edgelist_file, node_features_file):
 
     G = nx.read_edgelist(path)
@@ -100,7 +132,7 @@ def load_network(path, path_node_features, path_fairness_scores, fairness_notion
     node_features = {}
     with open(path_node_features, "r") as featuresCSV:
         #print(featuresCSV.read())
-        features_lines = [line.strip().split(", ") for line in featuresCSV.readlines()]
+        features_lines = [line.strip().split(",") for line in featuresCSV.readlines()]
         keys = features_lines[0]
         for i in range(1, len(features_lines)):
             single_node_features = {}
@@ -110,15 +142,24 @@ def load_network(path, path_node_features, path_fairness_scores, fairness_notion
 
     edge_x = []
     edge_y = []
-    # for edge in G.edges():
-    #     x0, y0 = float(node_features[edge[0]]["pos_x"]), float(node_features[edge[0]]["pos_y"])
-    #     x1, y1 = float(node_features[edge[1]]["pos_x"]), float(node_features[edge[1]]["pos_y"])
-    #     edge_x.append(x0)
-    #     edge_x.append(x1)
-    #     edge_x.append(None)
-    #     edge_y.append(y0)
-    #     edge_y.append(y1)
-    #     edge_y.append(None)
+    edge_lengths = []
+    for edge in G.edges():
+        x0, y0 = float(node_features[edge[0]]["pos_x"]), float(node_features[edge[0]]["pos_y"])
+        x1, y1 = float(node_features[edge[1]]["pos_x"]), float(node_features[edge[1]]["pos_y"])
+        length = math.sqrt((x1 - x0)**2 + (y1 - y0)**2)
+        edge_lengths.append(length)
+    edge_length_threshold = np.percentile(np.array(edge_lengths), 90)
+    for edge in G.edges():
+        x0, y0 = float(node_features[edge[0]]["pos_x"]), float(node_features[edge[0]]["pos_y"])
+        x1, y1 = float(node_features[edge[1]]["pos_x"]), float(node_features[edge[1]]["pos_y"])
+        length = math.sqrt((x1 - x0)**2 + (y1 - y0)**2)
+        if length >= edge_length_threshold:
+            edge_x.append(x0)
+            edge_x.append(x1)
+            edge_x.append(None)
+            edge_y.append(y0)
+            edge_y.append(y1)
+            edge_y.append(None)
 
     edge_trace = go.Scatter(
         x=edge_x, y=edge_y,
@@ -133,26 +174,36 @@ def load_network(path, path_node_features, path_fairness_scores, fairness_notion
         node_x.append(x)
         node_y.append(y)
 
+    # standardize coloscale
+    if fairness_notion == 'Individual (InFoRM)':
+        [val_min, val_max] = [0, 1]
+    elif fairness_notion == 'Group (Fairwalk)':
+        [val_min, val_max] = [-1, 1]
+    else:
+        [val_min, val_max] = [0, 1]
+
     node_trace = go.Scatter(
         x=node_x, y=node_y,
         mode='markers',
         hoverinfo='text',
         marker=dict(
-            showscale=True,
+            showscale=show_scale,
             # colorscale options
             #'Greys' | 'YlGnBu' | 'Greens' | 'YlOrRd' | 'Bluered' | 'RdBu' |
             #'Reds' | 'Blues' | 'Picnic' | 'Rainbow' | 'Portland' | 'Jet' |
             #'Hot' | 'Blackbody' | 'Earth' | 'Electric' | 'Viridis' |
             colorscale='Reds',
-            reversescale=True,
+            reversescale=False,
+            cmin=val_min,
+            cmax=val_max,
             color=[],
             size=5,
-            #colorbar=dict(
-            #    thickness=15,
-            #    title='Unfairness scores',
-            #    xanchor='left',
-            #    titleside='right'
-            #),
+            colorbar=dict(
+                thickness=17,
+                title='Unfairness scores <br> higher is more unfair',
+                xanchor='left',
+                titleside='right'
+            ),
             line_width=1))
 
     node_adjacencies = []
@@ -165,25 +216,54 @@ def load_network(path, path_node_features, path_fairness_scores, fairness_notion
     #node_trace.text = node_text
     # distinguish fairness notion and parameters
     if fairness_notion == 'Individual (InFoRM)':
-        scores = [float(node_features[nodeId]["InFoRM"]) for nodeId in G.nodes()]
-    else:
-        types = {"attribute": "str", "value": "str", "k": "str", "node_id": "str", "group_fairness_score": "float"}
-        print(path_fairness_scores)
-        group_fairness_pd = pd.read_csv(path_fairness_scores,
-                                       index_col=["attribute", "value", "k", "node_id"],
-                                       dtype=types)
-        scores = [group_fairness_pd.loc[params["attribute"]]
-                                    .loc[params["value"]]
-                                    .loc[params["k"]]
-                                    .loc[str(nodeId)]["group_fairness_score"] for nodeId in G.nodes()]
+        node_to_score = {}
+        with open(path_fairness_scores, "r") as scores_file:
+            lines = scores_file.readlines()
+            header = lines[0].strip("\n").split(",")
+            node_id_idx = header.index("id")
+            nr_hops_idx = header.index("nr_hops")
+            InFoRM_hops_idx = header.index("InFoRM_hops")
+            for i in range(1, len(lines)):
+                features = [feature.strip() for feature in lines[i].split(',')]
+                if int(features[nr_hops_idx]) == params["nrHops"]:
+                    try:
+                        node_to_score[features[node_id_idx]] = float(features[InFoRM_hops_idx])
+                    except:
+                        print(features)
+                        node_to_score[features[node_id_idx]] = 0.0
+        scores = [node_to_score[node] for node in G.nodes()]
 
-    node_text = ['unfairness score: {}'.format(round(s,2)) for s in scores]
+    else:
+        node_to_score = {}
+        with open(path_fairness_scores, "r") as scores_file:
+            lines = scores_file.readlines()
+            header = lines[0].strip("\n").split(",")
+            node_id_idx = header.index("node_id")
+            attribute_idx = header.index("attribute")
+            value_idx = header.index("value")
+            k_idx = header.index("k")
+            group_fairness_score_idx = header.index("group_fairness_score")
+            for i in range(1, len(lines)):
+                features = [feature.strip() for feature in lines[i].split(',')]
+                if features[attribute_idx] == params["attribute"] and\
+                    features[value_idx] == params["value"] and\
+                    features[k_idx] == params["k"]:
+                    try:
+                        node_to_score[features[node_id_idx]] = float(features[group_fairness_score_idx])
+                    except:
+                        print(features)
+                        node_to_score[features[node_id_idx]] = 0.0
+
+        scores = [node_to_score[node] for node in G.nodes()]
+
+    node_text = [" node id: {} <br> unfairness score: {} "
+                .format(n, round(scores[i],2)) for i,n in enumerate(G.nodes())]
     node_trace.marker.color = scores
     node_trace.text = node_text
 
     fig = go.Figure(data=[edge_trace, node_trace],
                 layout=go.Layout(
-                    title='Local Graph Topology',
+                    title=title,
                     titlefont_size=16,
                     showlegend=False,
                     hovermode='closest',
@@ -199,110 +279,6 @@ def load_network(path, path_node_features, path_fairness_scores, fairness_notion
                     )
     return fig
 
-
-def load_embedding_2dprojection(embedding_dir, graph_dir, type="TSNE"):
-
-    embedding = np.load(embedding_dir)
-    G = nx.read_edgelist(graph_dir)
-    W = nx.to_numpy_array(G)
-
-    if type=="TSNE":
-        tsne = TSNE(n_components=2, random_state=0)
-        projections = tsne.fit_transform(embedding)
-    elif type=="UMAP":
-        umap_2d = UMAP(n_components=2, init='random', random_state=0)
-        projections = umap_2d.fit_transform(embedding)
-
-    node_adjacencies = []
-    node_text = []
-    for _, adjacencies in enumerate(G.adjacency()):
-        node_adjacencies.append(len(adjacencies[1]))
-        node_text.append('# of connections: '+str(len(adjacencies[1])))
-
-    scores = unfairness_scores_normalized(embedding, W, G)
-    scores_unnormalized = unfairness_scores(embedding, W)
-    scores = [round(s,2) for s in scores]
-
-    fig = px.scatter(
-                projections, x=0, y=1,
-                color=scores,
-                color_continuous_scale='reds_r',
-                labels={"0": "dimension 1", "1": "dimension 2", 'color': 'unfairness score'},
-                title="2D projection of node embeddings ({})".format(type),
-            )
-
-    fig.update_layout(  dragmode='select')
-    fig.update_traces(  marker=dict(  size=10,
-                                    line=dict(  width=2
-                                                #color='black'
-                                            )),
-                        selector=dict(mode='markers'))
-                        #hovertemplate='unfairness score: {}'.format(round(scores,2)))
-
-    return fig
-
-def load_embedding_2dprojection_go(embedding_dir, graph_dir, type="TSNE"):
-
-    embedding = np.load(embedding_dir)
-    G = nx.read_edgelist(graph_dir)
-    W = nx.to_numpy_array(G)
-
-    if type=="TSNE":
-        tsne = TSNE(n_components=2, random_state=0)
-        projections = tsne.fit_transform(embedding)
-    elif type=="UMAP":
-        umap_2d = UMAP(n_components=2, init='random', random_state=0)
-        projections = umap_2d.fit_transform(embedding)
-
-    mark_trace = go.Scatter(
-        x=list(projections.T[0]), y=list(projections.T[1]),
-        mode='markers',
-        hoverinfo='text',
-        marker=dict(
-            showscale=True,
-            # colorscale options
-            #'Greys' | 'YlGnBu' | 'Greens' | 'YlOrRd' | 'Bluered' | 'RdBu' |
-            #'Reds' | 'Blues' | 'Picnic' | 'Rainbow' | 'Portland' | 'Jet' |
-            #'Hot' | 'Blackbody' | 'Earth' | 'Electric' | 'Viridis' |
-            colorscale='Reds',
-            reversescale=True,
-            color=[],
-            size=10,
-            #colorbar=dict(
-            #    thickness=15,
-            #    title='Unfairness scores',
-            #    xanchor='left',
-            #    titleside='right'
-            #),
-            line_width=2))
-
-    embedding = np.load(embedding_dir)
-    scores = unfairness_scores_normalized(embedding, W, G)
-    scores_unnormalized = unfairness_scores(embedding, W)
-    mark_text = ['unfairness score: {}'.format(round(s,2)) for s in scores]
-    mark_trace.marker.color = scores
-    mark_trace.text = mark_text
-
-    go.Layout
-
-    fig = go.Figure(data=mark_trace,
-                layout=go.Layout(
-                    title="2D projection of node embeddings ({})".format(type),
-                    titlefont_size=16,
-                    showlegend=False,
-                    hovermode='closest',
-                    dragmode='select',
-                    margin=dict(b=20,l=5,r=5,t=40),
-                    annotations=[ dict(
-                        text="",
-                        #text="Python code: <a href='https://plotly.com/ipython-notebooks/network-graphs/'> https://plotly.com/ipython-notebooks/network-graphs/</a>",
-                        showarrow=False,
-                        xref="paper", yref="paper",
-                        x=0.005, y=-0.002 ) ],
-                    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
-                    )
-    return fig
 
 def get_statistical_summary(G):
     # computes the statistical summary of the graph G
