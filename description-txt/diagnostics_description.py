@@ -19,7 +19,7 @@ description = html.Div([
 	html.P("The purpose of this view is to facilitate the “unfairness” diagnostics task, as described in our Task Analysis. \
 	The view consists of tree components: the “node-score” interactive table, the local network visualization along with the corresponding local node embeddings visualization.\
 	The three components allow the user to “drill-down” in order to discover the source of observed unfairness for a given network and embedding algorithm. The user can \
-	specify the fairness notion configuration, which in turn determines the “node-score” table entries. Consequtively, the user can select the focal node from the table \
+	specify the fairness notion configuration, which in turn determines the “node-score” table entries. Consecutively, the user can select the focal node from the table \
 	based on the unfairness score or the node id. Given the focal node selection, which is indicated by color and increased size (utilizing the pop-out effect), the local network topology \
 	and local node embeddings are produced. The default view uses as focal node the most unfair node according to the selected fairness notion configuration. \
 	The local network topology is the Ego Network of the selected node with radius 1 (1-hop) or 2 (2-hop), which consists of the selected node, its neighbors within distance upper bounded by the \
@@ -48,5 +48,6 @@ description = html.Div([
 	#
 	#
 	#
-	html.H2("Visualization", id="visualization")
+	html.H2("Final Visualization: Diagnose View", id="visualization"),
+	html.P(["Our visualisations were developed using the ",html.A(href="https://plotly.com/dash/", children="Dash")," Pyhton framework, written on top of Plotly.js and React.js."])
 	])

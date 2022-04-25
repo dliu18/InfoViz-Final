@@ -28,7 +28,7 @@ description = html.Div([
 	html.P("However, there are many difficulties with evaluating the fairness of graph embedding algorithms. First,\
 		existing notions of embedding fairness assign fairness scores to nodes, but given the size of the graph,\
 		it is difficult to know how the unfairness is distributed throughout the graph and why certain nodes are \
-		embeded unfairly. Second, as there are many graph embedding algorithms, it is important to compare the \
+		embedded unfairly. Second, as there are many graph embedding algorithms, it is important to compare the \
 		relative fairness of algorithms. Practitioners may compare the fairness of algorithms before applying \
 		embeddings."),\
 	#
@@ -38,15 +38,15 @@ description = html.Div([
 	html.P("Graph embedding algorithms convert each node in a graph/network into a d-dimensional vector. The process \
 		is similar to that of word embeddings, which represent individual words as low-dimensional vectors (embeddings). \
 		While there are dozens of graph embedding algorithms they nearly all share the same core idea: nodes that are \
-		similar in the structural graph should be embeded similarly in the d-dimensional vector space. For example, \
+		similar in the structural graph should be embedded similarly in the d-dimensional vector space. For example, \
 		nodes that are in the same community should also be clustered together in vector space."),
 	html.P(["Once nodes are represented as vectors, the embeddings can be passed to downstream machine learning \
-		modles. Common applications include classifying the functions of proteins, inferring the topics of documents, \
+		models. Common applications include classifying the functions of proteins, inferring the topics of documents, \
 		and recommending connections between users in a social network. For a more in-depth overview of graph embeddings \
 		and their applications please see William Hamilton's book titled ",
 		html.A("Graph Representation Learning.", href="https://www.cs.mcgill.ca/~wlh/grl_book/files/GRL_Book.pdf")]),
 	html.H3("Fairness of Graph Embeddings"),
-	html.P("Recent work has evaluated the fairness of graph embeddings and builds upon braoder fairness defintions \
+	html.P("Recent work has evaluated the fairness of graph embeddings and builds upon broader fairness definitions \
 		established in the algorithmic fairness community. Fairness definitions typically fall into two classes: \
 		individual and group. Individual fairness ensures that algorithms treat two similar individuals similarly. \
 		In contrast, group fairness ensures that two subpopulations, in aggregate, are treated similarly. Our \
@@ -54,7 +54,7 @@ description = html.Div([
 	html.P([
 			html.A("InFoRM:", href="https://dl.acm.org/doi/abs/10.1145/3394486.3403080"),
 			" This is a definition of individual fairness for graph embeddings. InFoRM assigns a non-negative score \
-			to each node. The score indicates how differently the node is embeded from other nodes in the neighborhood, \
+			to each node. The score indicates how differently the node is embedded from other nodes in the neighborhood, \
 			where the neighborhood is defined by the number of hops from the target node."
 		]),
 	html.P([
@@ -67,9 +67,9 @@ description = html.Div([
 	#
 	#
 	html.H2("Data", id="data"),
-	html.P(children=["Our data consist of the graph embeddings for four real-world graphs, which are considered common benchmarks. These graphs span mutiple domains \
+	html.P(children=["Our data consist of the graph embeddings for four real-world graphs, which are considered common benchmarks. These graphs span multiple domains \
 		including social media (Facebook, LastFM) and biology (protein-protein). Each \
-		network is embeded with six common graph embedding algorithms. These algorithms span the major classes \
+		network is embedded with six common graph embedding algorithms. These algorithms span the major classes \
 		of embedding algorithms: matrix factorization (SVD, HOPE, Laplacian Eigenmap), random-walk (Node2Vec), \
 		and deep learning (SDNE, HGCN). Further details about the data and the data itself are available at ",
 		html.A("this repository", href="https://dliu18.github.io/embedding_repo/"),"."
@@ -101,15 +101,16 @@ description = html.Div([
 	#into? html.P("")
 	html.P("We satisfy the statistical summary task with the “Statistical summary of the network” section. The summary provides key graph metrics to help the user understand the type of graph being studied. For the Degree Distribution the bar chart encoding was selected, since it makes use of the most effective magnitude channel to encode ordered attributes, according to the effectiveness ranking for visual channels presented in Munzer's VAD."),
 	
-	html.P("Next, we achieve the comparison task by providing side-by-side comparisons. The same network is shown in both sides but the node colors depend on the fairness of the respective embedding algorithm. The color channel is chosen to encode the score attribute, since other channels could negatively affect the representation of the network. A sequential colorscale is used, since the attribute being encoded is quantitative. We associated darker colors with a higher unfairness score based on the feedback collected from the Usability Testing."),
+	html.P("Next, we achieve the comparison task by providing side-by-side comparisons. The same network is shown in both sides but the node colors depend on the fairness of the respective embedding algorithm. The color channel is chosen to encode the score attribute, as other channels could negatively affect the representation of the network. A sequential colorscale is used, since the attribute being encoded is quantitative. We associated darker colors with a higher unfairness score based on the feedback collected from the Usability Testing."),
 
-	html.P("In order to improve the network visibility, we filter out visually non-salient edges. Specifically, we only display edges in the top 10 percent of length. Filtering allows us to save on browser memory, as the number of edges far exceeds the number of nodes. At the same time, we found that the bottom 90 percent of shortest edges were often not visible anyways, so filtering offers large perforamnce increases without loss in visual information."),
+	html.P("In order to improve the network visibility, we filter out visually non-salient edges. Specifically, we only display edges in the top 10 percent of length. Filtering allows us to save on browser memory, as the number of edges far exceeds the number of nodes. At the same time, we found that the bottom 90 percent of shortest edges were often not visible anyways, so filtering offers large performance increases without loss in visual information."),
 
 	# Both panels showing the network support T2. On top of them, the corresponding embedding algorithms can be selected from a dropdown list. On the right of them, the score function used can be selected. After executing the algorithms and computing the scores, these values are used to color the nodes of the network. The color scale used is shown below the selected score function. 
 
 	html.P("Finally, we address the “unfairness” diagnostics task with the “diagnostics” view that provides the functionality to list the most unfair nodes along with their local topology. These local visualizations explain the fairness score and help to identify causes of unfairness. A red color pop-out effect is used to distinguish the selected focal node, together with an increase in its size. This allows for a more efficient search of it, which is an essential component to understand the score computation. Brushing and linking is supported between the network and the embedding space to analyze how different nodes contribute to the fairness score."),
 	
-	html.H2(children='Visualization', id="visualization"),
+	html.H2(children='Final Visualization: Overview', id="visualization"),
+	html.P(["Our visualisations were developed using the ",html.A(href="https://plotly.com/dash/", children="Dash")," Python framework, written on top of Plotly.js and React.js."]),
 	])
 	# “Final Visualization” (i.e., final visualization, design justifications, packages utilized for coding, and UI walk-through), 
 	# “Data Analysis” (i.e., summary of interesting results), and 
