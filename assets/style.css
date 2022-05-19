@@ -18,7 +18,7 @@ th, td {
 a.button:link, a.button:visited {
   background-color: white;
   color: black;
-  border: 2px solid blue;
+  border: 2px solid rgb(212, 144, 123);
   padding: 14px 25px;
   text-align: center;
   text-decoration: none;
@@ -26,7 +26,7 @@ a.button:link, a.button:visited {
 }
 
 a.button:hover, a.button:active {
-  background-color: blue;
+  background-color: rgb(212, 144, 123);
   color: white;
 }
 
@@ -193,4 +193,9 @@ footer {
 /* Show the tooltip text when you mouse over the tooltip container */
 .tooltip:hover .tooltiptext {
   visibility: visible;
+}
+
+.legend {
+  background-color: rgb(233, 233, 233,0.3);
+  width: 70%;
 }

@@ -83,16 +83,22 @@ def draw_network(G, scores, focal, fairness_notion='Individual (InFoRM)',
         if fairness_notion == 'Individual (InFoRM)':
             # sequencial: https://colorbrewer2.org/#type=sequential&scheme=Reds&n=5
             if len(set(attributes))==2: # for 1-hop 
-                colormap = ['#fcae91','#a50f15']
+                colormap = ['#a50f15', '#fcae91',]
             else: # for 2-hop or more
-                colormap = ['#fee5d9','#fcae91','#a50f15']
+                colormap = ['#a50f15', '#fcae91', '#fee5d9']
         elif fairness_notion == 'Group (Fairwalk)':
             # categorical: https://colorbrewer2.org/#type=qualitative&scheme=Accent&n=7
-            colormap = ['#386cb0', '#beaed4', '#7fc97f','#fdc086','#ffff99']
-        node_trace.marker.color = attributes
-        node_trace.marker.colorscale = colormap
-        node_trace.marker.showscale = False
-        node_trace.marker.reversescale = True
+            # supports only binary attributes
+            colormap = ['#ffff99', '#386cb0'] #['#386cb0', '#beaed4', '#7fc97f','#fdc086','#ffff99']
+            if len(set(attributes))==1: # for 1 attribute
+                singlecolor = colormap[attributes[0]]
+        if len(set(attributes))==1:
+            node_trace.marker.color = singlecolor
+        else:
+            node_trace.marker.color = attributes
+            node_trace.marker.colorscale = colormap
+            node_trace.marker.showscale = False
+            node_trace.marker.reversescale = False
     else:   # else color by score
         # standardize coloscale
         if fairness_notion == 'Individual (InFoRM)':
@@ -198,16 +204,22 @@ def draw_embedding_2dprojection(G, projections, scores, focal, fairness_notion='
         if fairness_notion == 'Individual (InFoRM)':
             # sequencial: https://colorbrewer2.org/#type=sequential&scheme=Reds&n=5
             if len(set(attributes))==2: # for 1-hop 
-                colormap = ['#fcae91','#a50f15']
+                colormap = ['#a50f15', '#fcae91',]
             else: # for 2-hop or more
-                colormap = ['#fee5d9','#fcae91','#a50f15']
+                colormap = ['#a50f15', '#fcae91', '#fee5d9']
         elif fairness_notion == 'Group (Fairwalk)':
             # categorical: https://colorbrewer2.org/#type=qualitative&scheme=Accent&n=7
-            colormap = ['#386cb0', '#beaed4', '#7fc97f','#fdc086','#ffff99']
-        mark_trace.marker.color = attributes
-        mark_trace.marker.colorscale = colormap
-        mark_trace.marker.showscale = False
-        mark_trace.marker.reversescale = True
+            # supports only binary attributes
+            colormap = ['#ffff99', '#386cb0'] #['#386cb0', '#beaed4', '#7fc97f','#fdc086','#ffff99']
+            if len(set(attributes))==1: # for 1 attribute
+                singlecolor = colormap[attributes[0]]
+        if len(set(attributes))==1:
+            mark_trace.marker.color = singlecolor
+        else:
+            mark_trace.marker.color = attributes
+            mark_trace.marker.colorscale = colormap
+            mark_trace.marker.showscale = False
+            mark_trace.marker.reversescale = False
     else:   # else color by score
         # standardize coloscale
         if fairness_notion == 'Individual (InFoRM)':
@@ -280,7 +292,7 @@ def get_scores(fairness_notion, params, path_fairness_scores):
                     try:
                         node_to_score[features[node_id_idx]] = float(features[InFoRM_hops_idx])
                     except:
-                        print(features)
+                        #print(features)
                         node_to_score[features[node_id_idx]] = 0.0
     else:
         node_to_score = {}
@@ -296,16 +308,14 @@ def get_scores(fairness_notion, params, path_fairness_scores):
                 features = [feature.strip() for feature in lines[i].split(',')]
                 if features[attribute_idx] == params["attribute"] and\
                     features[value_idx] == params["value"] and\
-                    features[k_idx] == params["k"]:
+                    features[k_idx] == str(params["k"]):
                     try:
                         node_to_score[features[node_id_idx]] = float(features[group_fairness_score_idx])
                     except:
-                        print(features)
+                        #print(features)
                         node_to_score[features[node_id_idx]] = 0.0
 
-    scores = [score for i, (node_id, score) in enumerate(node_to_score.items())]
-
-    return scores
+    return node_to_score
 
 def get_node_features(path_node_features):
     '''read in node features''' 
@@ -329,9 +339,195 @@ def get_egoNet(G, node, k=1):
     ego_net = nx.ego_graph(G, node, radius=k)
 
     toc = time.perf_counter()
-    print(f"Calculated the ego net in {toc - tic:0.4f} seconds")
+    #print(f"Calculated the ego net in {toc - tic:0.4f} seconds")
 
     return ego_net,[idx for idx in ego_net.nodes()]
 
 def get_induced_subgraph(G, node_list):
     return G.subgraph(node_list)
+
+
+
+def load_network(G, path_node_features, path_fairness_scores, fairness_notion, params, 
+                title="Local Graph Topology", show_scale = True):
+    #def load_network(edgelist_file, node_features_file):
+    #G = nx.read_edgelist(path)
+    W = nx.to_numpy_array(G)
+    #node_features = np.loadtxt(open(path_node_features, "rb"), delimiter=",", skiprows=1).astype(int)
+
+    # pos = nx.get_node_attributes(G2,'pos')
+
+    # read in node features 
+    node_features = {}
+    with open(path_node_features, "r") as featuresCSV:
+        #print(featuresCSV.read())
+        features_lines = [line.strip().split(",") for line in featuresCSV.readlines()]
+        keys = features_lines[0]
+        for i in range(1, len(features_lines)):
+            single_node_features = {}
+            for j in range(len(keys)):
+                single_node_features[keys[j]] = features_lines[i][j]
+            node_features[single_node_features["id"]] = single_node_features
+
+    edge_x = []
+    edge_y = []
+    edge_lengths = []
+    for edge in G.edges():
+        x0, y0 = float(node_features[edge[0]]["pos_x"]), float(node_features[edge[0]]["pos_y"])
+        x1, y1 = float(node_features[edge[1]]["pos_x"]), float(node_features[edge[1]]["pos_y"])
+        length = math.sqrt((x1 - x0)**2 + (y1 - y0)**2)
+        edge_lengths.append(length)
+    edge_length_threshold = np.percentile(np.array(edge_lengths), 90)
+    for edge in G.edges():
+        x0, y0 = float(node_features[edge[0]]["pos_x"]), float(node_features[edge[0]]["pos_y"])
+        x1, y1 = float(node_features[edge[1]]["pos_x"]), float(node_features[edge[1]]["pos_y"])
+        length = math.sqrt((x1 - x0)**2 + (y1 - y0)**2)
+        if length >= edge_length_threshold:
+            edge_x.append(x0)
+            edge_x.append(x1)
+            edge_x.append(None)
+            edge_y.append(y0)
+            edge_y.append(y1)
+            edge_y.append(None)
+
+    edge_trace = go.Scatter(
+        x=edge_x, y=edge_y,
+        line=dict(width=0.5, color='#888'),
+        hoverinfo='none',
+        mode='lines')
+
+    node_x = []
+    node_y = []
+    for node in G.nodes():
+        x, y = float(node_features[node]["pos_x"]), float(node_features[node]["pos_y"])
+        node_x.append(x)
+        node_y.append(y)
+
+    # standardize coloscale
+    if fairness_notion == 'Individual (InFoRM)':
+        [val_min, val_max] = [0, 1]
+    elif fairness_notion == 'Group (Fairwalk)':
+        [val_min, val_max] = [-1, 1]
+    else:
+        [val_min, val_max] = [0, 1]
+
+    node_trace = go.Scatter(
+        x=node_x, y=node_y,
+        mode='markers',
+        hoverinfo='text',
+        marker=dict(
+            showscale=show_scale,
+            # colorscale options
+            #'Greys' | 'YlGnBu' | 'Greens' | 'YlOrRd' | 'Bluered' | 'RdBu' |
+            #'Reds' | 'Blues' | 'Picnic' | 'Rainbow' | 'Portland' | 'Jet' |
+            #'Hot' | 'Blackbody' | 'Earth' | 'Electric' | 'Viridis' |
+            colorscale='Reds',
+            reversescale=False,
+            cmin=val_min,
+            cmax=val_max,
+            color=[],
+            size=5,
+            colorbar=dict(
+                thickness=17,
+                title='Unfairness scores <br> higher is more unfair',
+                xanchor='left',
+                titleside='right'
+            ),
+            line_width=1))
+
+    node_adjacencies = []
+    node_text = []
+    for node, adjacencies in enumerate(G.adjacency()):
+        node_adjacencies.append(len(adjacencies[1]))
+        node_text.append('# of connections: '+str(len(adjacencies[1])))
+
+    #node_trace.marker.color = node_adjacencies
+    #node_trace.text = node_text
+    # distinguish fairness notion and parameters
+    node_to_score = get_scores(fairness_notion, params, path_fairness_scores)
+    # if fairness_notion == 'Individual (InFoRM)':
+    #     node_to_score = {}
+    #     with open(path_fairness_scores, "r") as scores_file:
+    #         lines = scores_file.readlines()
+    #         header = lines[0].strip("\n").split(",")
+    #         node_id_idx = header.index("id")
+    #         nr_hops_idx = header.index("nr_hops")
+    #         InFoRM_hops_idx = header.index("InFoRM_hops")
+    #         for i in range(1, len(lines)):
+    #             features = [feature.strip() for feature in lines[i].split(',')]
+    #             if int(features[nr_hops_idx]) == params["nrHops"]:
+    #                 try:
+    #                     node_to_score[features[node_id_idx]] = float(features[InFoRM_hops_idx])
+    #                 except:
+    #                     print(features)
+    #                     node_to_score[features[node_id_idx]] = 0.0
+    #     scores = [node_to_score[node] for node in G.nodes()]
+
+    # else:
+    #     node_to_score = {}
+    #     with open(path_fairness_scores, "r") as scores_file:
+    #         lines = scores_file.readlines()
+    #         header = lines[0].strip("\n").split(",")
+    #         node_id_idx = header.index("node_id")
+    #         attribute_idx = header.index("attribute")
+    #         value_idx = header.index("value")
+    #         k_idx = header.index("k")
+    #         group_fairness_score_idx = header.index("group_fairness_score")
+    #         for i in range(1, len(lines)):
+    #             features = [feature.strip() for feature in lines[i].split(',')]
+    #             if features[attribute_idx] == params["attribute"] and\
+    #                 features[value_idx] == params["value"] and\
+    #                 features[k_idx] == str(params["k"]):
+    #                 try:
+    #                     node_to_score[features[node_id_idx]] = float(features[group_fairness_score_idx])
+    #                 except:
+    #                     print(features)
+    #                     node_to_score[features[node_id_idx]] = 0.0
+
+    scores = [node_to_score[node] for node in G.nodes()]
+
+    node_text = [" node id: {} <br> unfairness score: {} "
+                .format(n, round(scores[i],2)) for i,n in enumerate(G.nodes())]
+    node_trace.marker.color = scores
+    node_trace.text = node_text
+
+    fig = go.Figure(data=[edge_trace, node_trace],
+                layout=go.Layout(
+                    title=title,
+                    titlefont_size=16,
+                    showlegend=False,
+                    hovermode='closest',
+                    #dragmode='select',
+                    margin=dict(b=20,l=5,r=5,t=40),
+                    annotations=[ dict(
+                        text="",
+                        #text="Python code: <a href='https://plotly.com/ipython-notebooks/network-graphs/'> https://plotly.com/ipython-notebooks/network-graphs/</a>",
+                        showarrow=False,
+                        xref="paper", yref="paper",
+                        x=0.005, y=-0.002 ) ],
+                    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
+                    )
+    return fig
+
+
+def get_statistical_summary(G):
+    # computes the statistical summary of the graph G
+    n = nx.number_of_nodes(G)
+    m = nx.number_of_edges(G)
+    density = nx.density(G)
+    number_of_triangles = int(sum(nx.triangles(G).values()) / 3)
+    avg_clust_coeff = nx.average_clustering(G)
+    return n,m,density,number_of_triangles,avg_clust_coeff
+
+def get_edgelist_file(networkName):
+    name_to_edgelist = {"Facebook": "facebook_combined.edgelist",
+                        "protein-protein": "ppi.edgelist",
+                        "AutonomousSystems": "AS.edgelist",
+                        "ca-HepTh": "ca-HepTh.edgelist",
+                        "LastFM": "lastfm_asia_edges.edgelist",
+                        "wikipedia": "wikipedia.edgelist"}
+    if networkName in name_to_edgelist:
+        return name_to_edgelist[networkName]
+    else:
+        return name_to_edgelist["Facebook"]
