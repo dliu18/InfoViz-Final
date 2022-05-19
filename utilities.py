@@ -118,11 +118,10 @@ def group_unfairness_score(Y, W, node_idx, node_features, S, z, k):
 def group_unfairness_scores(Y, W, node_features, S, z, k):
     return [group_unfairness_score(Y, W, i, node_features, S, z, k) for i in range(len(Y))]
 
-def load_network(path, path_node_features, path_fairness_scores, fairness_notion, params, 
+def load_network(G, path_node_features, path_fairness_scores, fairness_notion, params, 
                 title="Local Graph Topology", show_scale = True):
-#def load_network(edgelist_file, node_features_file):
-
-    G = nx.read_edgelist(path)
+    #def load_network(edgelist_file, node_features_file):
+    #G = nx.read_edgelist(path)
     W = nx.to_numpy_array(G)
     #node_features = np.loadtxt(open(path_node_features, "rb"), delimiter=",", skiprows=1).astype(int)
 
@@ -229,7 +228,7 @@ def load_network(path, path_node_features, path_fairness_scores, fairness_notion
                     try:
                         node_to_score[features[node_id_idx]] = float(features[InFoRM_hops_idx])
                     except:
-                        print(features)
+                        #print(features)
                         node_to_score[features[node_id_idx]] = 0.0
         scores = [node_to_score[node] for node in G.nodes()]
 
@@ -247,11 +246,11 @@ def load_network(path, path_node_features, path_fairness_scores, fairness_notion
                 features = [feature.strip() for feature in lines[i].split(',')]
                 if features[attribute_idx] == params["attribute"] and\
                     features[value_idx] == params["value"] and\
-                    features[k_idx] == params["k"]:
+                    features[k_idx] == str(params["k"]):
                     try:
                         node_to_score[features[node_id_idx]] = float(features[group_fairness_score_idx])
                     except:
-                        print(features)
+                        #print(features)
                         node_to_score[features[node_id_idx]] = 0.0
 
         scores = [node_to_score[node] for node in G.nodes()]

@@ -18,6 +18,9 @@ server = app.server
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
     html.Div(id='page-content')
+    #dcc.Store(id='network-name', data="Facebook", storage_type='memory'), # 'memory' or 'session'
+    #dcc.Store(id='embedding-name', data="Node2Vec", storage_type='memory')
+    #dcc.Store(id='focal-node-id', data=[], storage_type='memory')
 ])
 
 @callback(Output('page-content', 'children'),
